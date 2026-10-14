@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>はやさの旅 10ステージ</title>
+<meta name="apple-mobile-web-app-title" content="かんいろの旅">
+<title>かんいろの旅</title>
 <style>
 :root{
   --paper:#F1F6EE;--card:#FFFFFF;--ink:#1F3A5F;--sub:#5B6F86;--road:#E8B04A;--grass:#6DB57F;
@@ -79,213 +80,41 @@ button:focus-visible{outline:3px solid var(--flag);outline-offset:2px}
 .res td:last-child{text-align:right;color:var(--road);white-space:nowrap}
 .ghost{display:block;width:100%;padding:12px;border-radius:16px;border:2px solid var(--line);background:var(--card);font-size:17px;margin-top:10px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.lock{min-height:90vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.lock h1{font-size:26px}.lock p{color:var(--sub);margin:4px 0 16px}
+.pins{display:flex;gap:12px;justify-content:center;margin-bottom:8px}
+.pins i{width:20px;height:20px;border-radius:50%;border:3px solid var(--ink)}
+.pins i.on{background:var(--ink)}
+.lock .keys{width:100%;max-width:300px;grid-template-columns:repeat(3,1fr)}
+.lock .err{color:var(--ng);min-height:24px;font-size:15px}
+.back{background:none;border:none;color:var(--sub);padding:4px 0;font-size:15px}
+.subjects{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
+.subj{text-align:left;padding:16px 14px;border-radius:20px;border:none;background:var(--sc);color:#fff;min-height:118px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 4px 0 rgba(0,0,0,.18)}
+.subj:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.18)}
+.subj .ic{font-size:30px;line-height:1}
+.subj b{font-size:24px;letter-spacing:.1em}
+.subj small{font-size:13px;opacity:.92}
+.subj.empty{opacity:.55}
+.units{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.unit{text-align:left;padding:14px 16px;border-radius:18px;border:2px solid var(--line);border-left:8px solid var(--sc);background:var(--card)}
+.unit b{font-size:19px}.unit span{display:block;font-size:13px;color:var(--sub)}
+.bar{height:8px;border-radius:4px;background:var(--line);margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--road)}
+.emptybox{margin-top:14px;padding:22px;border-radius:18px;border:2px dashed var(--line);text-align:center;color:var(--sub)}
+.choices{display:flex;flex-direction:column;gap:8px;width:100%}
+.choices button{text-align:left;padding:14px 16px;border-radius:14px;border:2px solid var(--line);background:var(--key);font-size:18px}
+.choices button.x{opacity:.45;text-decoration:line-through}
+.choices button.c{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 16%,var(--card))}
 </style>
 </head>
 <body>
 <div class="wrap" id="app"></div>
-<script>
-// ===== helpers =====
-const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
-const pick=a=>a[Math.floor(Math.random()*a.length)];
-const r=x=>Math.round(x*1000)/1000;
-const tf=m=>{const h=Math.floor(m/60),mm=m%60;return (h?h+'時間':'')+(mm?mm+'分':'');};
-const KIDS=[['ゆうと','そうた'],['さくら','ひなた'],['けいた','あきら'],['みお','りん']];
+<script src="app.js"></script>
 
-const TITLES=['時間の単位','長さの単位','秒速・分速・時速','きょりを求める','時間を求める','速さを求める','出会いの旅人算','追いかけの旅人算','池の周りの旅人算','ボス：くり返し・3人'];
-const PAGES=['予習1','予習1','予習1','予習2','予習2','予習2','予習3','予習3','予習4','予習5・6'];
+<!-- ===== 単元ファイル：新しい単元を作ったら、ここに1行足す ===== -->
+<script src="units/sansu-hayasa.js"></script>
+<!-- ============================================================ -->
 
-// diagrams
-const D={
- area:()=>`<svg viewBox="0 0 300 130"><rect x="70" y="10" width="170" height="90" fill="none" stroke="currentColor" stroke-width="3"/><text x="155" y="62" text-anchor="middle" font-size="18" fill="currentColor">きょり</text><text x="30" y="62" text-anchor="middle" font-size="16" fill="currentColor">速さ</text><text x="155" y="124" text-anchor="middle" font-size="16" fill="currentColor">時間</text></svg>`,
- conv:()=>`<svg viewBox="0 0 320 90"><g font-size="16" fill="currentColor" text-anchor="middle"><text x="40" y="52">秒速</text><text x="160" y="52">分速</text><text x="280" y="52">時速</text><text x="100" y="22">×60 →</text><text x="220" y="22">×60 →</text><text x="100" y="82">← ÷60</text><text x="220" y="82">← ÷60</text></g></svg>`,
- meet:()=>`<svg viewBox="0 0 320 80"><line x1="20" y1="40" x2="300" y2="40" stroke="currentColor" stroke-width="3"/><path d="M20 40 h90" stroke="#E4572E" stroke-width="6"/><path d="M300 40 h-70" stroke="#2E9E5B" stroke-width="6"/><text x="60" y="28" font-size="14" fill="currentColor">→</text><text x="260" y="28" font-size="14" fill="currentColor">←</text><text x="160" y="72" font-size="14" text-anchor="middle" fill="currentColor">1分で 速さの和 ずつ近づく</text></svg>`,
- chase:()=>`<svg viewBox="0 0 320 90"><line x1="20" y1="30" x2="300" y2="30" stroke="currentColor" stroke-width="2"/><line x1="20" y1="60" x2="300" y2="60" stroke="currentColor" stroke-width="2"/><path d="M20 30 h100" stroke="#E4572E" stroke-width="6"/><circle cx="20" cy="60" r="6" fill="#2E9E5B"/><text x="70" y="22" font-size="13" text-anchor="middle" fill="currentColor">先に行ったぶん</text><text x="160" y="84" font-size="14" text-anchor="middle" fill="currentColor">1分で 速さの差 ずつ縮まる</text></svg>`,
- pond:(same)=>`<svg viewBox="0 0 300 140"><circle cx="150" cy="70" r="40" fill="none" stroke="currentColor" stroke-width="2"/><text x="150" y="76" font-size="16" text-anchor="middle" fill="currentColor">池</text><circle cx="150" cy="70" r="56" fill="none" stroke="currentColor" stroke-dasharray="5 5"/><line x1="150" y1="6" x2="150" y2="30" stroke="currentColor" stroke-width="3"/><text x="150" y="136" font-size="13" text-anchor="middle" fill="currentColor">${same?'同じ向き → 進んだ距離の差が1周':'反対向き → 進んだ距離の和が1周'}</text></svg>`
-};
-
-function Q(text,unit,ans,hint,explain,diag){return{type:'num',text,unit,ans,hint,explain,diag}}
-function P(text,labels,ans,hint,explain,diag){return{type:'pair',text,labels,ans,hint,explain,diag}}
-
-// ===== generators =====
-const GEN={
-1:()=>{const k=ri(0,3);
- if(k===0){const h=pick([1.5,2.5,0.5,1.2,2.4,0.25,3.5]);return Q(`${h}時間 ＝ □ 分`,'分',r(h*60),'時間 → 分 は ×60。時間は10進法じゃないので「150分」はまちがい！',[`${h} × 60 ＝ ${r(h*60)}分`]);}
- if(k===1){const s=pick([90,150,210,30,270,45]);return Q(`${s}秒 ＝ □ 分`,'分',r(s/60),'秒 → 分 は ÷60',[`${s} ÷ 60 ＝ ${r(s/60)}分`]);}
- if(k===2){const m=pick([90,150,45,30,210,75]);return Q(`${m}分 ＝ □ 時間`,'時間',r(m/60),'分 → 時間 は ÷60',[`${m} ÷ 60 ＝ ${r(m/60)}時間`]);}
- const h=pick([1,2,0.5,3]);return Q(`${h}時間 ＝ □ 秒`,'秒',h*3600,'時間 → 秒 は ×60×60 ＝ ×3600',[`${h} × 3600 ＝ ${h*3600}秒`]);},
-2:()=>{if(Math.random()<.5){const k=pick([3.2,1.5,0.8,2.45,0.06,4.3]);return Q(`${k}km ＝ □ m`,'m',r(k*1000),'1km ＝ 1000m。km → m は ×1000',[`${k} × 1000 ＝ ${r(k*1000)}m`]);}
- const m=pick([125,2500,800,4300,50,7200]);return Q(`${m}m ＝ □ km`,'km',r(m/1000),'m → km は ÷1000',[`${m} ÷ 1000 ＝ ${r(m/1000)}km`]);},
-3:()=>{const k=ri(0,4);
- if(k===0){const s=ri(2,20);return Q(`秒速${s}m ＝ 分速 □ m`,'m',s*60,'秒速 → 分速 は ×60',[`${s} × 60 ＝ 分速${s*60}m`],D.conv());}
- if(k===1){const m=pick([50,100,150,250,800,1200]);return Q(`分速${m}m ＝ 時速 □ km`,'km',r(m*60/1000),'分速 → 時速 は ×60。そのあと m を km に！',[`${m} × 60 ＝ ${m*60}m`,`${m*60}m ＝ ${r(m*60/1000)}km`],D.conv());}
- if(k===2){const v=pick([3,6,9,12,18,36,54,72]);return Q(`時速${v}km ＝ 分速 □ m`,'m',r(v*1000/60),'まず km を m に。時速 → 分速 は ÷60',[`${v}km ＝ ${v*1000}m`,`${v*1000} ÷ 60 ＝ ${r(v*1000/60)}m`],D.conv());}
- if(k===3){const s=ri(2,25);return Q(`秒速${s}m ＝ 時速 □ km`,'km',r(s*3.6),'秒速1m ＝ 時速3.6km を使うと速い！',[`${s} × 3.6 ＝ 時速${r(s*3.6)}km`],D.conv());}
- const s=ri(5,25);return Q(`時速${r(s*3.6)}km ＝ 秒速 □ m`,'m',s,'秒速1m ＝ 時速3.6km。だから ÷3.6',[`${r(s*3.6)} ÷ 3.6 ＝ 秒速${s}m`],D.conv());},
-4:()=>{if(Math.random()<.5){const a=pick([60,70,80,90,120,150]),t=ri(5,25),n=pick(KIDS)[0];
-  return Q(`${n}さんが分速${a}mで${t}分歩くと、何km進みますか。`,'km',r(a*t/1000),'きょり ＝ 速さ × 時間。答えは km で！',[`${a} × ${t} ＝ ${a*t}m`,`${a*t}m ＝ ${r(a*t/1000)}km`],D.area());}
- const v=pick([30,36,42,48,60]),t=pick([20,30,40,50]);
- return Q(`時速${v}kmの車が${t}分走ると、何km進みますか。`,'km',r(v*t/60),'時速なので「分」を「時間」に直してからかけ算！',[`${t}分 ＝ ${t}/60時間`,`${v} × ${t}/60 ＝ ${r(v*t/60)}km`],D.area());},
-5:()=>{if(Math.random()<.5){let a,t;do{a=pick([60,75,80,120,150,200,250]);t=ri(6,40);}while((a*t)%100);
-  return Q(`分速${a}mの自転車が${r(a*t/1000)}km進むのに何分かかりますか。`,'分',t,'時間 ＝ きょり ÷ 速さ。km を m にそろえてから！',[`${r(a*t/1000)}km ＝ ${a*t}m`,`${a*t} ÷ ${a} ＝ ${t}分`],D.area());}
- let v,t;do{v=pick([40,45,48,60,36]);t=pick([75,80,90,100,105,40,50]);}while((v*t)%60);
- const d=v*t/60;return P(`時速${v}kmの車で${d}km進むと、何時間何分かかりますか。`,['時間','分'],[Math.floor(t/60),t%60],'時間 ＝ きょり ÷ 速さ。出た「時間」の小数・分数を分に直そう',[`${d} ÷ ${v} ＝ ${r(d/v)}時間`,`＝ ${tf(t)}`],D.area());},
-6:()=>{if(Math.random()<.5){let v,t;do{v=pick([30,36,45,48,54,60,72,75,90]);t=pick([40,50,80,90,100,75,20,70]);}while((v*t)%60);
-  const d=v*t/60;return Q(`${d}kmを${tf(t)}で走る車の速さは、時速何kmですか。`,'km',v,'速さ ＝ きょり ÷ 時間。時速なので時間を「時間」の単位に！',[`${tf(t)} ＝ ${t}/60時間`,`${d} ÷ ${t}/60 ＝ ${d} × 60/${t} ＝ 時速${v}km`],D.area());}
- const a=pick([60,70,80,90,150,200]),t=ri(6,30);
- return Q(`${a*t}mを${t}分で進みました。速さは分速何mですか。`,'m',a,'速さ ＝ きょり ÷ 時間',[`${a*t} ÷ ${t} ＝ 分速${a}m`],D.area());},
-7:()=>{const a=pick([60,70,80,90,100]),b=pick([40,50,60,70]),t=ri(8,20),d=(a+b)*t,[n1,n2]=pick(KIDS);
- return Q(`A町とB町は${r(d/1000)}km離れています。${n1}さんはA町から分速${a}m、${n2}さんはB町から分速${b}mで、向かい合って同時に出発しました。2人は何分後に出会いますか。`,'分',t,'反対向きに進む → 速さの「和」を使う！',[`1分で ${a}＋${b} ＝ ${a+b}m ずつ近づく`,`${r(d/1000)}km ＝ ${d}m`,`${d} ÷ ${a+b} ＝ ${t}分後`],D.meet());},
-8:()=>{let a,b,k,t;do{a=pick([50,60,70,80]);b=a+pick([20,30,40,50]);k=ri(3,12);t=a*k/(b-a);}while(t%1||t>20);
- const [n1,n2]=pick(KIDS);
- return Q(`${n1}さんが分速${a}mで家を出てから${k}分後に、${n2}さんが分速${b}mで追いかけました。${n2}さんは出発してから何分後に追いつきますか。`,'分',t,'同じ向きに進む → 速さの「差」を使う！まず先に進んだ距離を出そう',[`先に進んだ距離：${a} × ${k} ＝ ${a*k}m`,`1分で ${b}－${a} ＝ ${b-a}m ずつ縮まる`,`${a*k} ÷ ${b-a} ＝ ${t}分後`],D.chase());},
-9:()=>{const [n1,n2]=pick(KIDS);let a,b;do{a=pick([80,90,100,110,120]);b=pick([40,50,60,70]);}while(a-b<30);
- if(Math.random()<.5){const t=ri(4,10),L=(a+b)*t;
-  return Q(`1周${L}mの池の周りを、${n1}さん（分速${a}m）と${n2}さん（分速${b}m）が同じ場所から同時に、反対向きに歩きます。はじめて出会うのは何分後ですか。`,'分',t,'反対向き → 2人の進んだ距離の「和」が1周',[`${L} ÷ (${a}＋${b}) ＝ ${L} ÷ ${a+b} ＝ ${t}分後`],D.pond(false));}
- let t,L;do{t=ri(10,30);L=(a-b)*t;}while(L>2400||L<400);
- return Q(`1周${L}mの池の周りを、${n1}さん（分速${a}m）と${n2}さん（分速${b}m）が同じ場所から同時に、同じ向きに歩きます。${n1}さんが${n2}さんをはじめて追いこすのは何分後ですか。`,'分',t,'同じ向き → 2人の進んだ距離の「差」が1周',[`${L} ÷ (${a}－${b}) ＝ ${L} ÷ ${a-b} ＝ ${t}分後`],D.pond(true));},
-10:()=>{const [n1,n2]=pick(KIDS);
- if(Math.random()<.5){const a=pick([60,70,80]),b=pick([40,50,60]),t1=ri(8,14)+pick([0,.5]),d=(a+b)*t1,tot=t1*3;
-  return P(`A町とB町は${r(d/1000)}km離れています。${n1}さんは分速${a}mでA町から、${n2}さんは分速${b}mでB町から同時に出発し、2つの町の間を何往復もします。2人が「2回目」に出会うのは出発してから何分何秒後ですか。`,['分','秒'],[Math.floor(tot),Math.round((tot%1)*60)],'1回目までに2人で「片道ぶん」、1回目→2回目は2人で「1往復ぶん（片道の2倍）」進むよ',[`1回目：${d} ÷ (${a}＋${b}) ＝ ${t1}分`,`1回目→2回目は2倍：${t1} × 2 ＝ ${t1*2}分`,`合計：${t1} ＋ ${t1*2} ＝ ${tot}分 → ${Math.floor(tot)}分${Math.round((tot%1)*60)}秒`]);}
- let p,q,s,g,t;do{p=pick([100,110,120,130]);q=p-pick([20,30,40]);s=pick([60,70,80]);g=ri(4,8);t=(q+s)*g/(p-q);}while(t%1||t>40);
- const gap=(q+s)*g,PQ=(p+s)*t;
- return Q(`ゆうとさん（分速${p}m）とあきらさん（分速${q}m）はP町からQ町へ、みおさん（分速${s}m）はQ町からP町へ同時に出発しました。ゆうとさんとみおさんがすれちがってから${g}分後に、あきらさんとみおさんがすれちがいました。P町からQ町までは何kmですか。`,'km',r(PQ/1000),'情景図をかこう！① 最初のすれちがいの時、あきらさんはゆうとさんより何m後ろ？ ② それは出発から何分後？',[`① あきらさんとみおさんが${g}分で近づく：(${q}＋${s}) × ${g} ＝ ${gap}m`,`② ゆうとさんとあきらさんの差が${gap}mになるのは：${gap} ÷ (${p}－${q}) ＝ ${t}分後`,`③ PQ間 ＝ (${p}＋${s}) × ${t} ＝ ${PQ}m ＝ ${r(PQ/1000)}km`]);}
-};
-
-// ===== storage =====
-const PLAYERS=['カンナ','イロハ'];
-let state={player:PLAYERS[0],data:{}};
-const blank=()=>({days:{},best:{}});
-async function load(p){try{if(window.storage){const g=await window.storage.get('hayasa:'+p,false);return g?JSON.parse(g.value):blank();}const v=localStorage.getItem('hayasa:'+p);return v?JSON.parse(v):blank();}catch(e){return blank();}}
-async function save(){const k='hayasa:'+state.player,v=JSON.stringify(state.data[state.player]);try{if(window.storage)await window.storage.set(k,v,false);else localStorage.setItem(k,v);}catch(e){}}
-const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
-const dkey=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-function streak(days){let n=0,d=new Date();if(!days[dkey(d)])d.setDate(d.getDate()-1);while(days[dkey(d)]){n++;d.setDate(d.getDate()-1);}return n;}
-const me=()=>state.data[state.player]||blank();
-
-// ===== home =====
-const app=document.getElementById('app');
-function mapSVG(best){
- const pts=[[30,180],[80,150],[60,105],[115,75],[170,100],[225,130],[280,105],[250,60],[300,35],[340,60]];
- let path='M'+pts.map(p=>p.join(' ')).join(' L');
- let s=`<svg viewBox="0 0 370 210" aria-label="ステージの地図"><path d="${path}" fill="none" stroke="var(--road)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>`;
- s+=`<path d="${path}" fill="none" stroke="var(--card)" stroke-width="2" stroke-dasharray="6 8"/>`;
- pts.forEach((p,i)=>{const b=best[i+1]||0,c=b>0;
-  s+=`<circle cx="${p[0]}" cy="${p[1]}" r="14" fill="${c?'var(--flag)':'var(--card)'}" stroke="var(--ink)" stroke-width="2"/>`;
-  s+=`<text x="${p[0]}" y="${p[1]+5}" text-anchor="middle" font-size="13" font-weight="700" fill="${c?'#fff':'var(--ink)'}">${i+1}</text>`;
-  if(b===2)s+=`<text x="${p[0]+12}" y="${p[1]-10}" font-size="14">⭐</text>`;});
- const done=Object.keys(best).filter(k=>best[k]>0).map(Number);const at=done.length?Math.max(...done):0;
- const w=at?pts[at-1]:[12,196];
- s+=`<text x="${w[0]-6}" y="${w[1]-14}" font-size="22">🚶</text></svg>`;return s;}
-function home(){
- const d=me(),t=today(),played=d.days[t];
- let days='';for(let i=6;i>=0;i--){const x=new Date();x.setDate(x.getDate()-i);const k=dkey(x);
-  days+=`<div class="day ${d.days[k]?'on':''} ${i===0?'today':''}"><b></b>${'日月火水木金土'[x.getDay()]}</div>`;}
- app.innerHTML=`
- <h1>はやさの旅 🚶</h1>
- <p class="lead">10のステージを進んで、速さと旅人算をマスターしよう</p>
- <div class="players">${PLAYERS.map(p=>`<button aria-pressed="${p===state.player}" data-p="${p}">${p}</button>`).join('')}</div>
- <div class="mapbox">${mapSVG(d.best)}</div>
- <div class="streak"><span>🔥 れんぞく <b style="font-size:22px">${streak(d.days)}</b> 日</span><div class="days">${days}</div></div>
- <button class="big" id="daily">${played?`今日のチャレンジ もう一回（今日の記録 ⭐${played.s}/20）`:'今日のチャレンジ（10問）'}</button>
- <div class="sec">ステージをえらんで練習（5問）</div>
- <div class="lvlist">${TITLES.map((n,i)=>`<button class="lv" data-l="${i+1}"><span>レベル${i+1}・${PAGES[i]}</span>${n}<div class="st">${'⭐'.repeat(d.best[i+1]||0)||'　'}</div></button>`).join('')}</div>`;
- app.querySelectorAll('[data-p]').forEach(b=>b.onclick=async()=>{state.player=b.dataset.p;if(!state.data[state.player])state.data[state.player]=await load(state.player);home();});
- document.getElementById('daily').onclick=()=>start('daily');
- app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>start('lv',+b.dataset.l));
-}
-
-// ===== quiz =====
-let run;
-function start(mode,lv){
- const qs=mode==='daily'?[1,2,3,4,5,6,7,8,9,10].map(l=>({lv:l,...GEN[l]()})):Array.from({length:5},()=>({lv,...GEN[lv]()}));
- run={mode,lv,qs,i:0,res:[],tries:0,hint:false,vals:[],act:0,done:false};show();}
-function show(){
- const q=run.qs[run.i];run.tries=0;run.hint=false;run.done=false;run.vals=q.type==='pair'?['','']:[''];run.act=0;
- const n=run.qs.length;
- const dots=run.qs.map((_,k)=>{const st=run.res[k];return `<div class="dot ${st===undefined?'':st>0?'ok':'ng'}" style="left:calc(${(k+.5)/n*100}% )"></div>`}).join('');
- app.innerHTML=`
- <div class="top"><span>${run.mode==='daily'?'今日のチャレンジ':'れんしゅう'}　${run.i+1} / ${n}</span><button class="quit" id="quit">やめる</button></div>
- <div class="track"><div class="rd"></div>${dots}<div class="walker" style="left:${(run.i+.5)/n*100}%">🚶</div></div>
- <div class="card">
-  <span class="tag">レベル${q.lv}　${TITLES[q.lv-1]}</span>
-  <div class="q">${q.text.replace('□','<b>□</b>')}</div>
-  <div class="ansrow" id="ar"></div>
-  <div class="keys" id="keys">${['7','8','9','⌫','4','5','6','go','1','2','3','0','.'].map(k=>k==='go'?'<button class="go" data-k="go">こたえる</button>':`<button data-k="${k}">${k}</button>`).join('')}</div>
-  <button class="hintbtn" id="hb">💡 ヒントを見る（⭐が1つになるよ）</button>
-  <div id="hint"></div><div id="fb"></div>
- </div>`;
- drawFields();
- document.getElementById('quit').onclick=home;
- document.getElementById('hb').onclick=showHint;
- app.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>key(b.dataset.k));
-}
-function drawFields(){
- const q=run.qs[run.i],ar=document.getElementById('ar');
- const f=(i)=>`<div class="field ${run.act===i?'act':''}" data-f="${i}" role="button" tabindex="0">${run.vals[i]||'&nbsp;'}</div>`;
- ar.innerHTML=q.type==='pair'?`${f(0)}${q.labels[0]} ${f(1)}${q.labels[1]}`:`${f(0)} ${q.unit}`;
- ar.querySelectorAll('[data-f]').forEach(e=>e.onclick=()=>{run.act=+e.dataset.f;drawFields();});
-}
-function key(k){
- if(run.done)return;
- if(k==='go')return check();
- let v=run.vals[run.act];
- if(k==='⌫')v=v.slice(0,-1);else if(k==='.'){if(!v.includes('.'))v=(v||'0')+'.';}else if(v.length<7)v=v==='0'?k:v+k;
- run.vals[run.act]=v;drawFields();
-}
-document.addEventListener('keydown',e=>{if(!run||!document.getElementById('keys'))return;
- if(/^[0-9.]$/.test(e.key))key(e.key);else if(e.key==='Backspace')key('⌫');else if(e.key==='Enter'){run.done?nextQ():key('go');}});
-function showHint(){
- const q=run.qs[run.i];run.hint=true;
- document.getElementById('hint').innerHTML=`<div class="hint">💡 ${q.hint}${q.diag||''}</div>`;
- document.getElementById('hb').style.display='none';
-}
-function check(){
- const q=run.qs[run.i];
- if(run.vals.some(v=>v===''||v==='.'))return;
- const ok=q.type==='pair'?q.ans.every((a,i)=>Math.abs(parseFloat(run.vals[i])-a)<1e-6):Math.abs(parseFloat(run.vals[0])-q.ans)<1e-6;
- const fb=document.getElementById('fb');
- if(ok){const s=(run.tries===0&&!run.hint)?2:1;finish(s,true);return;}
- run.tries++;
- if(run.tries===1){
-  const ar=document.getElementById('ar');ar.classList.remove('shake');void ar.offsetWidth;ar.classList.add('shake');
-  fb.innerHTML=`<div class="fb ng"><p>おしい！もう一回やってみよう。</p></div>`;
-  run.vals=run.vals.map(()=>'');run.act=0;drawFields();if(!run.hint)showHint();
- }else finish(0,false);
-}
-function finish(s,ok){
- const q=run.qs[run.i];run.done=true;run.res[run.i]=s;
- const ans=q.type==='pair'?`${q.ans[0]}${q.labels[0]}${q.ans[1]}${q.labels[1]}`:`${q.ans}${q.unit}`;
- document.getElementById('keys').style.display='none';document.getElementById('hb').style.display='none';
- const praise=['すごい！','カンペキ！','やったね！','その調子！'];
- document.getElementById('fb').innerHTML=`<div class="fb ${ok?'ok':'ng'}">
-  <h3>${ok?pick(praise)+' '+'⭐'.repeat(s):'答えは '+ans}</h3>
-  ${q.explain.map(l=>`<p>${l}</p>`).join('')}
-  <button class="big next" id="nx">${run.i+1<run.qs.length?'つぎへ':'けっかを見る'}</button></div>`;
- document.getElementById('nx').onclick=nextQ;document.getElementById('nx').focus();
-}
-function nextQ(){run.i++;if(run.i<run.qs.length)show();else result();}
-
-// ===== result =====
-async function result(){
- const d=me(),total=run.res.reduce((a,b)=>a+b,0),max=run.qs.length*2;
- run.qs.forEach((q,k)=>{d.best[q.lv]=Math.max(d.best[q.lv]||0,run.res[k]);});
- if(run.mode==='daily'){const t=today();const prev=d.days[t];d.days[t]={s:Math.max(prev?prev.s:0,total)};}
- state.data[state.player]=d;await save();
- const rate=total/max;
- const msg=rate===1?'全問パーフェクト！旅の達人だ 🏆':rate>=.75?'すばらしい！あと少しで満点 🎉':rate>=.5?'いい感じ！ヒントを見た問題をもう一度 💪':'まずはヒントを読んで、ゆっくりやってみよう 🌱';
- app.innerHTML=`<div class="card res">
-  <span class="tag">${state.player}さんのけっか</span>
-  <div class="stars">⭐ ${total} / ${max}</div>
-  <div class="msg">${msg}</div>
-  <table>${run.qs.map((q,k)=>`<tr><td>レベル${q.lv}　${TITLES[q.lv-1]}</td><td>${run.res[k]?'⭐'.repeat(run.res[k]):'もう一回'}</td></tr>`).join('')}</table>
-  ${run.mode==='daily'?`<p style="margin-top:14px">🔥 れんぞく ${streak(d.days)} 日目！また明日もちがう問題が出るよ</p>`:''}
-  <button class="big" id="again">もう一回</button>
-  <button class="ghost" id="hm">地図にもどる</button></div>`;
- document.getElementById('again').onclick=()=>start(run.mode,run.lv);
- document.getElementById('hm').onclick=home;
-}
-
-(async()=>{for(const p of PLAYERS)state.data[p]=await load(p);home();})();
-</script>
+<script>kaniroStart();</script>
 </body>
 </html>
