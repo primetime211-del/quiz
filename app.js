@@ -161,7 +161,8 @@ function show(){
    <span class="tag">レベル${q.lv}　${esc(lvt)}</span>
    <div class="q">${q.text.replace('□','<b>□</b>')}</div>
    <div class="ansrow" id="ar"></div>
-   ${q.type==='choice'?'':`<div class="keys" id="keys">${['7','8','9','⌫','4','5','6','go','1','2','3','0','.'].map(k=>k==='go'?'<button class="go" data-k="go">こたえる</button>':`<button data-k="${k}">${k}</button>`).join('')}</div>`}
+   ${q.type==='choice'?'':`<div id="keys"><div class="keys calc">${CALC_KEYS.map(k=>`<button data-k="${k}" class="${OPS.includes(k)?'op':k==='='?'eq':k==='C'||k==='⌫'?'fn':''}" aria-label="${k==='⌫'?'1文字けす':k==='C'?'ぜんぶけす':k}">${k}</button>`).join('')}</div>
+   <button class="go" data-k="go">こたえる</button></div>`}
    ${q.hint?'<button class="hintbtn" id="hb">💡 ヒントを見る（⭐が1つになるよ）</button>':''}
    <div id="hint"></div><div id="fb"></div>
   </div>`;
@@ -177,22 +178,46 @@ function drawAns(){
     ar.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{if(run.done||b.classList.contains('x'))return;run.vals=[b.dataset.c];check(b);});
     return;
   }
-  const f=i=>`<div class="field ${run.act===i?'act':''}" data-f="${i}" role="button" tabindex="0">${run.vals[i]||'&nbsp;'}</div>`;
+  const f=i=>{const v=run.vals[i],hasOp=/[＋−×÷()]/.test(v),c=hasOp?calc(v):null;
+    return `<div class="fwrap"><div class="field ${run.act===i?'act':''}" data-f="${i}" role="button" tabindex="0">${v||'&nbsp;'}</div>${hasOp?`<div class="prev">${c===null?'…':'＝ '+fmt(c)}</div>`:''}</div>`;};
   ar.innerHTML=q.type==='pair'?`${f(0)}${q.labels[0]} ${f(1)}${q.labels[1]}`:`${f(0)} ${q.unit||''}`;
   ar.querySelectorAll('[data-f]').forEach(e=>e.onclick=()=>{run.act=+e.dataset.f;drawAns();});
 }
+// ===== 電卓 =====
+const OPS=['＋','−','×','÷'];
+const CALC_KEYS=['7','8','9','÷','⌫','4','5','6','×','C','1','2','3','−','(','0','.','=','＋',')'];
+function calc(v){
+  if(!v||!/^[0-9.＋−×÷()]+$/.test(v))return null;
+  const js=v.replace(/＋/g,'+').replace(/−/g,'-').replace(/×/g,'*').replace(/÷/g,'/');
+  try{const x=Function('"use strict";return ('+js+')')();return (typeof x==='number'&&isFinite(x))?Math.round(x*1e9)/1e9:null;}catch(e){return null;}
+}
+const fmt=x=>String(Math.round(x*1e6)/1e6);
 function key(k){
   if(!run||run.done)return;
   if(k==='go')return check();
   let v=run.vals[run.act];
-  if(k==='⌫')v=v.slice(0,-1);else if(k==='.'){if(!v.includes('.'))v=(v||'0')+'.';}else if(v.length<7)v=v==='0'?k:v+k;
+  const last=v.slice(-1),num=v.split(/[＋−×÷()]/).pop();
+  if(k==='⌫')v=v.slice(0,-1);
+  else if(k==='C')v='';
+  else if(k==='='){const c=calc(v);if(c===null)return bad('式をたしかめてね');v=fmt(c);}
+  else if(v.length>=24)return;
+  else if(OPS.includes(k)){if(OPS.includes(last))v=v.slice(0,-1)+k;else if(v===''||last==='('){if(k==='−')v+=k;else return;}else v+=k;}
+  else if(k==='.'){if(!num.includes('.'))v+=(num===''?'0':'')+'.';}
+  else if(k==='('){if(v===''||OPS.includes(last)||last==='(')v+=k;else v+='×(';}
+  else if(k===')'){const o=(v.match(/\(/g)||[]).length,c=(v.match(/\)/g)||[]).length;if(o>c&&!OPS.includes(last)&&last!=='(')v+=k;}
+  else{if(last===')')v+='×';if(num==='0')v=v.slice(0,-1);v+=k;}
   run.vals[run.act]=v;drawAns();
+}
+function bad(msg){
+  const ar=document.getElementById('ar');ar.classList.remove('shake');void ar.offsetWidth;ar.classList.add('shake');
+  document.getElementById('fb').innerHTML=`<div class="fb ng"><p>${msg}</p></div>`;
 }
 document.addEventListener('keydown',e=>{
   if(!run||!document.getElementById('ar'))return;
   if(e.key==='Enter'&&run.done)return nextQ();
   if(!document.getElementById('keys'))return;
-  if(/^[0-9.]$/.test(e.key))key(e.key);else if(e.key==='Backspace')key('⌫');else if(e.key==='Enter')key('go');
+  const m={'+':'＋','-':'−','*':'×','/':'÷','=':'=','(':'(',')':')','Backspace':'⌫','Escape':'C','Enter':'go'};
+  if(/^[0-9.]$/.test(e.key))key(e.key);else if(m[e.key]){e.preventDefault();key(m[e.key]);}
 });
 function showHint(){
   const q=run.qs[run.i];if(!q.hint)return;run.hint=true;
@@ -202,10 +227,13 @@ function showHint(){
 function check(btn){
   const q=run.qs[run.i];
   if(run.vals.some(v=>v===''||v==='.'))return;
+  let nums=[];
+  if(q.type!=='choice'){nums=run.vals.map(calc);if(nums.some(x=>x===null))return bad('式をたしかめてね（かっこの数や、さいごの記号など）');
+    run.vals=nums.map(fmt);drawAns();}
   let ok;
   if(q.type==='choice')ok=+run.vals[0]===q.ans;
-  else if(q.type==='pair')ok=q.ans.every((a,i)=>Math.abs(parseFloat(run.vals[i])-a)<1e-6);
-  else ok=Math.abs(parseFloat(run.vals[0])-q.ans)<1e-6;
+  else if(q.type==='pair')ok=q.ans.every((a,i)=>Math.abs(nums[i]-a)<1e-6);
+  else ok=Math.abs(nums[0]-q.ans)<1e-6;
   if(ok)return finish((run.tries===0&&!run.hint)?2:1,true);
   run.tries++;
   if(run.tries===1){
