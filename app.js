@@ -17,7 +17,8 @@ const KIDS=[['ゆうと','そうた'],['さくら','ひなた'],['けいた','�
 // P: 数字2つを答える     P(問題文, [単位1,単位2], [答え1,答え2], ヒント, [解説...], 図)
 // C: えらんで答える      C(問題文, 正解, [まちがい...], ヒント, [解説...], 図)
 function Q(text,unit,ans,hint,explain,diag){return{type:'num',text,unit,ans,hint,explain,diag}}
-function P(text,labels,ans,hint,explain,diag){return{type:'pair',text,labels,ans,hint,explain,diag}}
+// labels は ['時間','分'] のような単位、または [['兄','個'],['弟','個']] のように「名前と単位」でもOK（3つ以上も可）
+function P(text,labels,ans,hint,explain,diag){return{type:'pair',text,labels:labels.map(l=>Array.isArray(l)?l:['',l]),ans,hint,explain,diag}}
 function C(text,correct,wrongs,hint,explain,diag){const ch=shuffle([correct,...wrongs]);return{type:'choice',text,choices:ch,ans:ch.indexOf(correct),hint,explain,diag}}
 
 // ===== 教科と単元 =====
@@ -30,7 +31,9 @@ const SUBJECTS=[
 const UNITS=[];
 function registerUnit(u){UNITS.push(u);}
 const subj=id=>SUBJECTS.find(s=>s.id===id);
-const unitsOf=sid=>UNITS.filter(u=>u.subject===sid);
+// 単元に players:['イロハ'] のように書くと、その人だけに表示（書かなければ全員）
+const forMe=u=>!u.players||u.players.includes(state.player);
+const unitsOf=sid=>UNITS.filter(u=>u.subject===sid&&forMe(u));
 
 // ===== 記録の保存 =====
 const PLAYERS=['カンナ','イロハ'];
@@ -123,7 +126,9 @@ function mapSVG(u){
   return s+`<text x="${w[0]-6}" y="${w[1]-14}" font-size="22">🚶</text></svg>`;
 }
 function unit(){
-  const u=UNITS.find(x=>x.id===view.uid),s=subj(u.subject),d=me(),t=today();
+  const u=UNITS.find(x=>x.id===view.uid);
+  if(!u||!forMe(u))return go({name:'subject',sid:u?u.subject:'sansu'});
+  const s=subj(u.subject),d=me(),t=today();
   const doneToday=d.days[t]&&d.days[t].u&&d.days[t].u[u.id];
   const best=unitBest(u.id);
   app().innerHTML=`
@@ -151,7 +156,7 @@ function start(u,mode,lv){
 }
 function show(){
   const q=run.qs[run.i],n=run.qs.length;
-  Object.assign(run,{tries:0,hint:false,done:false,act:0,vals:q.type==='pair'?['','']:['']});
+  Object.assign(run,{tries:0,hint:false,done:false,act:0,vals:q.type==='pair'?q.labels.map(()=>''):['']});
   const dots=run.qs.map((_,k)=>{const st=run.res[k];return `<div class="dot ${st===undefined?'':st>0?'ok':'ng'}" style="left:${(k+.5)/n*100}%"></div>`;}).join('');
   const lvt=run.u.levels[q.lv-1].title;
   app().innerHTML=`
@@ -180,7 +185,7 @@ function drawAns(){
   }
   const f=i=>{const v=run.vals[i],hasOp=/[＋−×÷()]/.test(v),c=hasOp?calc(v):null;
     return `<div class="fwrap"><div class="field ${run.act===i?'act':''}" data-f="${i}" role="button" tabindex="0">${v||'&nbsp;'}</div>${hasOp?`<div class="prev">${c===null?'…':'＝ '+fmt(c)}</div>`:''}</div>`;};
-  ar.innerHTML=q.type==='pair'?`${f(0)}${q.labels[0]} ${f(1)}${q.labels[1]}`:`${f(0)} ${q.unit||''}`;
+  ar.innerHTML=q.type==='pair'?q.labels.map(([pre,u],i)=>`<span class="pl">${pre?`<span class="pre">${pre}</span>`:''}${f(i)}${u}</span>`).join(''):`${f(0)} ${q.unit||''}`;
   ar.querySelectorAll('[data-f]').forEach(e=>e.onclick=()=>{run.act=+e.dataset.f;drawAns();});
 }
 // ===== 電卓 =====
@@ -246,7 +251,7 @@ function check(btn){
 }
 function finish(s,ok){
   const q=run.qs[run.i];run.done=true;run.res[run.i]=s;
-  const ans=q.type==='choice'?q.choices[q.ans]:q.type==='pair'?`${q.ans[0]}${q.labels[0]}${q.ans[1]}${q.labels[1]}`:`${q.ans}${q.unit||''}`;
+  const ans=q.type==='choice'?q.choices[q.ans]:q.type==='pair'?q.labels.map(([pre,u],i)=>`${pre?pre+' ':''}${q.ans[i]}${u}`).join('　'):`${q.ans}${q.unit||''}`;
   const keys=document.getElementById('keys');if(keys)keys.style.display='none';
   const hb=document.getElementById('hb');if(hb)hb.style.display='none';
   if(q.type==='choice'){const b=app().querySelector(`[data-c="${q.ans}"]`);if(b)b.classList.add('c');}

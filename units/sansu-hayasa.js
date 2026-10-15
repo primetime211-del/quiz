@@ -16,6 +16,7 @@ const D={
 registerUnit({
   id:'sansu-hayasa',
   subject:'sansu',
+  players:['カンナ'],
   title:'速さ',
   desc:'単位の換算・3用法・旅人算',
   levels:[

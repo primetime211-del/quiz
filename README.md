@@ -10,14 +10,16 @@
 index.html          画面のデザインと、読みこむ単元の一覧
 app.js              共通のしくみ（ふだん触らない）
 units/
-  sansu-hayasa.js   算数「速さ」
+  sansu-hayasa.js   算数「速さ」（カンナ）
+  sansu-wasazan.js  算数「線分図と和差算」（イロハ）
   _template.js      新しい単元のひな形（読みこまれない）
 ```
 
 ## 単元の追加方法
 
 1. `units/_template.js` をコピーして名前を変える（例：`units/rika-tenki.js`）
-2. 中の `id` `subject` `title` `levels` を書きかえる
+2. 中の `id` `subject` `players` `title` `levels` を書きかえる
+   （`players:['イロハ']` のように書くと、その人のときだけ表示されます）
 3. `index.html` の「単元ファイル」の所に1行足す
 
 ```html

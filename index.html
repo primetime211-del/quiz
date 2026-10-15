@@ -67,6 +67,9 @@ button:focus-visible{outline:3px solid var(--flag);outline-offset:2px}
 .keys.calc .fn{font-size:18px;color:var(--sub)}
 .fwrap{display:flex;flex-direction:column;align-items:flex-start;max-width:100%}
 .field{max-width:100%;overflow-x:auto;white-space:nowrap}
+.pl{display:flex;align-items:center;gap:6px;margin-right:6px}
+.pre{font-size:16px;font-weight:700;min-width:3.6em}
+.ansrow:has(.pl){flex-direction:column;align-items:flex-start}
 .prev{font-size:15px;color:var(--sub);margin-top:2px;padding-left:4px}
 .keys button{height:56px;border-radius:14px;border:2px solid var(--line);background:var(--key);font-size:24px;font-weight:700}
 .go{display:block;width:100%;height:56px;margin-top:8px;border-radius:14px;border:none;background:var(--ok);color:#fff;font-size:20px;font-weight:700}
@@ -120,7 +123,8 @@ button:focus-visible{outline:3px solid var(--flag);outline-offset:2px}
 <script src="app.js"></script>
 
 <!-- ===== 単元ファイル：新しい単元を作ったら、ここに1行足す ===== -->
-<script src="units/sansu-hayasa.js"></script>
+<script src="units/sansu-hayasa.js"></script>      <!-- カンナ -->
+<script src="units/sansu-wasazan.js"></script>     <!-- イロハ -->
 <!-- ============================================================ -->
 
 <script>kaniroStart();</script>
