@@ -15,6 +15,9 @@ units/
   sansu-gyakuzan.js 算数「□を求める問題」（イロハ・電卓なし）
   sansu-shosu.js    算数「小数」（イロハ・電卓なし）
   sansu-kakudo.js   算数「角度」（イロハ）
+  rika-chiso.js     理科「地層と地球の歴史」（カンナ）
+  rika-hoshi.js     理科「星の動きと天球図」（カンナ）
+  shakai-kamakura-muromachi.js  社会「鎌倉時代」「室町時代」（カンナ）
   _template.js      新しい単元のひな形（読みこまれない）
 ```
 
