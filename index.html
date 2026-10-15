@@ -64,7 +64,9 @@ button:focus-visible{outline:3px solid var(--flag);outline-offset:2px}
 .keys.calc button{height:54px;font-size:22px;padding:0}
 .keys.calc .op{background:color-mix(in srgb,var(--road) 22%,var(--key));border-color:color-mix(in srgb,var(--road) 50%,var(--line))}
 .keys.calc .eq{background:color-mix(in srgb,var(--ink) 14%,var(--key))}
-.keys.calc .fn{font-size:18px;color:var(--sub)}
+.keys.num{grid-template-columns:repeat(4,1fr)}
+.keys.num button{height:56px;font-size:24px}
+.keys.calc .fn,.keys.num .fn{font-size:18px;color:var(--sub)}
 .fwrap{display:flex;flex-direction:column;align-items:flex-start;max-width:100%}
 .field{max-width:100%;overflow-x:auto;white-space:nowrap}
 .pl{display:flex;align-items:center;gap:6px;margin-right:6px}
@@ -90,6 +92,13 @@ button:focus-visible{outline:3px solid var(--flag);outline-offset:2px}
 .res td{padding:6px 4px;border-bottom:1px solid var(--line)}
 .res td:last-child{text-align:right;color:var(--road);white-space:nowrap}
 .ghost{display:block;width:100%;padding:12px;border-radius:16px;border:2px solid var(--line);background:var(--card);font-size:17px;margin-top:10px}
+.tate{display:inline-block;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:22px;text-align:right;line-height:1.35;margin:6px 0 6px 12px;letter-spacing:.12em}
+.tate .op{float:left;margin-right:10px}
+.tate .ans{border-top:2px solid currentColor;min-height:1.35em}
+.mushi{display:grid;width:max-content;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:24px;line-height:1;gap:6px 4px;margin:8px 0 4px 12px;text-align:center}
+.mushi span{width:34px;height:36px;display:flex;align-items:center;justify-content:center}
+.mushi .h{border:2px solid currentColor;border-radius:6px;font-size:17px;font-weight:700;color:var(--flag);border-color:var(--flag)}
+.mushi .bar{grid-column:1/-1;height:0;border-top:2px solid currentColor;width:100%}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .lock{min-height:90vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 .lock h1{font-size:26px}.lock p{color:var(--sub);margin:4px 0 16px}
@@ -125,6 +134,9 @@ button:focus-visible{outline:3px solid var(--flag);outline-offset:2px}
 <!-- ===== 単元ファイル：新しい単元を作ったら、ここに1行足す ===== -->
 <script src="units/sansu-hayasa.js"></script>      <!-- カンナ -->
 <script src="units/sansu-wasazan.js"></script>     <!-- イロハ -->
+<script src="units/sansu-gyakuzan.js"></script>    <!-- イロハ -->
+<script src="units/sansu-shosu.js"></script>       <!-- イロハ -->
+<script src="units/sansu-kakudo.js"></script>      <!-- イロハ -->
 <!-- ============================================================ -->
 
 <script>kaniroStart();</script>

@@ -10,6 +10,13 @@ const pick=a=>a[Math.floor(Math.random()*a.length)];            // 配列から1
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
 const r=x=>Math.round(x*1000)/1000;                              // 小数の誤差を消す
 const tf=m=>{const h=Math.floor(m/60),mm=m%60;return (h?h+'時間':'')+(mm?mm+'分':'');};
+// 筆算（小数点をそろえて表示）： tate([上の数, 下の数], '＋', 答え)
+function tate(nums,op,res){
+  const strs=[...nums,res].map(String),dec=Math.max(...strs.map(x=>(x.split('.')[1]||'').length));
+  const pad=x=>{let [i,d='']=String(x).split('.');return dec?i+'.'+d.padEnd(dec,'0'):i;};
+  const rows=nums.map((n,i)=>`<div>${i===nums.length-1?`<span class="op">${op}</span>`:''}${pad(n)}</div>`).join('');
+  return `<div class="tate">${rows}<div class="ans">${res===undefined?'':pad(res)}</div></div>`;
+}
 const KIDS=[['ゆうと','そうた'],['さくら','ひなた'],['けいた','あきら'],['みお','りん']];
 
 // 問題の形
@@ -151,8 +158,8 @@ function unit(){
 let run=null;
 function start(u,mode,lv){
   const mk=l=>({lv:l,...u.levels[l-1].gen()});
-  const qs=mode==='daily'?u.levels.map((_,i)=>mk(i+1)):Array.from({length:5},()=>mk(lv));
-  run={u,mode,lv,qs,i:0,res:[],tries:0,hint:false,vals:[],act:0,done:false};show();
+  const qs=mode==='daily'?u.levels.map((l,i)=>l.daily===false?null:i+1).filter(Boolean).map(mk):Array.from({length:5},()=>mk(lv));
+  run={u,mode,lv,qs,calc:u.calc!==false,i:0,res:[],tries:0,hint:false,vals:[],act:0,done:false};show();
 }
 function show(){
   const q=run.qs[run.i],n=run.qs.length;
@@ -166,7 +173,7 @@ function show(){
    <span class="tag">レベル${q.lv}　${esc(lvt)}</span>
    <div class="q">${q.text.replace('□','<b>□</b>')}</div>
    <div class="ansrow" id="ar"></div>
-   ${q.type==='choice'?'':`<div id="keys"><div class="keys calc">${CALC_KEYS.map(k=>`<button data-k="${k}" class="${OPS.includes(k)?'op':k==='='?'eq':k==='C'||k==='⌫'?'fn':''}" aria-label="${k==='⌫'?'1文字けす':k==='C'?'ぜんぶけす':k}">${k}</button>`).join('')}</div>
+   ${q.type==='choice'?'':`<div id="keys"><div class="keys ${run.calc?'calc':'num'}">${(run.calc?CALC_KEYS:NUM_KEYS).map(k=>k===''?'<span></span>':`<button data-k="${k}" class="${OPS.includes(k)?'op':k==='='?'eq':k==='C'||k==='⌫'?'fn':''}" aria-label="${k==='⌫'?'1文字けす':k==='C'?'ぜんぶけす':k}">${k}</button>`).join('')}</div>
    <button class="go" data-k="go">こたえる</button></div>`}
    ${q.hint?'<button class="hintbtn" id="hb">💡 ヒントを見る（⭐が1つになるよ）</button>':''}
    <div id="hint"></div><div id="fb"></div>
@@ -190,6 +197,8 @@ function drawAns(){
 }
 // ===== 電卓 =====
 const OPS=['＋','−','×','÷'];
+// 単元に calc:false と書くと、電卓なし（数字だけ）のキーになる
+const NUM_KEYS=['7','8','9','⌫','4','5','6','C','1','2','3','','0','.'];
 const CALC_KEYS=['7','8','9','÷','⌫','4','5','6','×','C','1','2','3','−','(','0','.','=','＋',')'];
 function calc(v){
   if(!v||!/^[0-9.＋−×÷()]+$/.test(v))return null;
@@ -198,7 +207,8 @@ function calc(v){
 }
 const fmt=x=>String(Math.round(x*1e6)/1e6);
 function key(k){
-  if(!run||run.done)return;
+  if(!run||run.done||!k)return;
+  if(!run.calc&&(OPS.includes(k)||k==='('||k===')'||k==='='))return;
   if(k==='go')return check();
   let v=run.vals[run.act];
   const last=v.slice(-1),num=v.split(/[＋−×÷()]/).pop();
