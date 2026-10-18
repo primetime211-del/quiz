@@ -18,6 +18,7 @@ units/
   rika-chiso.js     理科「地層と地球の歴史」（カンナ）
   rika-hoshi.js     理科「星の動きと天球図」（カンナ）
   shakai-kamakura-muromachi.js  社会「鎌倉時代」「室町時代」（カンナ）
+  kokugo.js         国語「漢字」「ことわざ・慣用句」「四字熟語」（カンナ＝全部、イロハ＝4年までの漢字に自動でしぼる）
   _template.js      新しい単元のひな形（読みこまれない）
 ```
 
