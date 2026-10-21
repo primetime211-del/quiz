@@ -138,6 +138,12 @@ function unit(){
   const s=subj(u.subject),d=me(),t=today();
   const doneToday=d.days[t]&&d.days[t].u&&d.days[t].u[u.id];
   const best=unitBest(u.id);
+  const nQ=u.adaptive?AD.N:u.levels.filter(l=>l.daily!==false).length;
+  let adBox='';
+  if(u.adaptive){const a=adStatus(u);const pct=a.rate==null?0:Math.round(a.rate*100);
+    adBox=`<div class="adbox"><b>いまのレベル：${a.lv}　${esc(u.levels[a.lv-1].title)}</b>
+      <span>${a.max?'さいごのレベルまで来たよ！苦手なレベルも混ぜて出すよ':`直近${AD.WIN}問で正解率${AD.UP*100}%になると、レベル${a.lv+1}に進むよ（いま ${a.n}問・${pct}%）`}</span>
+      <div class="bar"><i style="width:${a.max?100:Math.min(100,a.n/AD.WIN*pct)}%"></i></div></div>`;}
   app().innerHTML=`
   <button class="back" id="bk">← ${s.name}</button>
   <h1>${esc(u.title)}</h1>
@@ -145,7 +151,8 @@ function unit(){
   ${playersBar()}
   <div class="mapbox">${mapSVG(u)}</div>
   ${streakBar()}
-  <button class="big" id="daily">${doneToday!==undefined?`今日のチャレンジ もう一回（今日の記録 ⭐${doneToday}/${u.levels.length*2}）`:`今日のチャレンジ（${u.levels.length}問）`}</button>
+  ${adBox}
+  <button class="big" id="daily">${doneToday!==undefined?`今日のチャレンジ もう一回（今日の記録 ⭐${doneToday}/${nQ*2}）`:`今日のチャレンジ（${nQ}問）`}</button>
   <div class="sec">ステージをえらんで練習（5問）</div>
   <div class="lvlist">${u.levels.map((l,i)=>`<button class="lv" data-l="${i+1}"><span>レベル${i+1}${l.page?'・'+esc(l.page):''}</span>${esc(l.title)}<div class="st">${'⭐'.repeat(best[i+1]||0)||'　'}</div></button>`).join('')}</div>`;
   document.getElementById('bk').onclick=()=>go({name:'subject',sid:u.subject});
@@ -156,9 +163,68 @@ function unit(){
 
 // ===== クイズ =====
 let run=null;
+// ===== 同じ問題を出さないしくみ =====
+// これまでに出た問題（プレイヤー・単元ごと）を覚えておき、出たことのない問題を優先して作る
+const SEEN_MAX=1500;
+const sig=q=>(q.text||'').replace(/<[^>]+>/g,'')+'|'+(q.type==='choice'?q.choices.slice().sort().join(','):'');
+function seenOf(uid){const d=me();d.seen=d.seen||{};return d.seen[uid]=d.seen[uid]||{};}
+function freshQ(u,l,used){
+  const seen=seenOf(u.id);let best=null,bestT=Infinity;
+  for(let t=0;t<40;t++){
+    const q={lv:l,...u.levels[l-1].gen()},k=sig(q);
+    if(used.has(k))continue;
+    if(!seen[k]){used.add(k);return q;}
+    if(seen[k]<bestT){best=q;bestT=seen[k];}       // 全部出たことがあるなら、いちばん昔に出た問題
+  }
+  if(best){used.add(sig(best));return best;}
+  return {lv:l,...u.levels[l-1].gen()};
+}
+function markSeen(u,qs){
+  const seen=seenOf(u.id),now=Date.now();qs.forEach((q,i)=>{seen[sig(q)]=now+i;});
+  const ks=Object.keys(seen);if(ks.length>SEEN_MAX)ks.sort((a,b)=>seen[a]-seen[b]).slice(0,ks.length-SEEN_MAX).forEach(k=>delete seen[k]);
+}
+
+// ===== 正解率に合わせてレベルを上げるしくみ（単元に adaptive:true） =====
+// ・レベルごとに直近の結果を記録（ヒントなし1回で正解＝1、ヒントや2回目で正解＝0.5、まちがい＝0）
+// ・いまのレベルで「直近6問の正解率80%以上」になったら、次のレベルが解放される
+// ・今日の10問：いまのレベル6問＋苦手なレベル2問＋復習2問（レベル1のうちは全部レベル1）
+const AD={N:10,WIN:6,UP:.8};
+function adOf(uid){const d=me();d.ad=d.ad||{};
+  if(!d.ad[uid]){ // はじめて使うときは、これまでの⭐の記録からスタートのレベルを決める（⭐⭐のレベルは合格あつかい）
+    const b=(d.best||{})[uid]||{},u=UNITS.find(x=>x.id===uid);let lv=1;
+    while(u&&lv<u.levels.length&&b[lv]===2)lv++;
+    d.ad[uid]={lv,hist:{}};}
+  return d.ad[uid];}
+function rateOf(a,l){const h=a.hist[l]||[];return h.length?h.reduce((x,y)=>x+y,0)/h.length:null;}
+function adaptiveLevels(u){
+  const a=adOf(u.id),F=Math.min(a.lv,u.levels.length),pickN=[];
+  const lower=Array.from({length:F-1},(_,i)=>i+1);
+  if(!lower.length)return Array(AD.N).fill(F);
+  const weak=lower.slice().sort((x,y)=>(rateOf(a,x)??0)-(rateOf(a,y)??0));
+  const nCur=lower.length>=2?6:7;
+  for(let i=0;i<nCur;i++)pickN.push(F);
+  pickN.push(weak[0]);pickN.push(weak[Math.min(1,weak.length-1)]);
+  while(pickN.length<AD.N)pickN.push(pick(lower));
+  return pickN.sort((x,y)=>x-y);
+}
+function adRecord(u,qs,res){
+  const a=adOf(u.id);
+  qs.forEach((q,i)=>{const h=a.hist[q.lv]=a.hist[q.lv]||[];h.push(res[i]===2?1:res[i]===1?.5:0);if(h.length>AD.WIN)h.splice(0,h.length-AD.WIN);});
+  const before=a.lv,h=a.hist[a.lv]||[];
+  if(a.lv<u.levels.length&&h.length>=AD.WIN&&rateOf(a,a.lv)>=AD.UP)a.lv++;
+  return a.lv>before;
+}
+function adStatus(u){
+  const a=adOf(u.id),h=a.hist[a.lv]||[],r=rateOf(a,a.lv);
+  return {lv:a.lv,n:h.length,rate:r,max:a.lv>=u.levels.length};
+}
+
 function start(u,mode,lv){
-  const mk=l=>({lv:l,...u.levels[l-1].gen()});
-  const qs=mode==='daily'?u.levels.map((l,i)=>l.daily===false?null:i+1).filter(Boolean).map(mk):Array.from({length:5},()=>mk(lv));
+  const used=new Set();
+  const levels=mode==='daily'
+    ?(u.adaptive?adaptiveLevels(u):u.levels.map((l,i)=>l.daily===false?null:i+1).filter(Boolean))
+    :Array(5).fill(lv);
+  const qs=levels.map(l=>freshQ(u,l,used));
   run={u,mode,lv,qs,calc:u.calc!==false,i:0,res:[],tries:0,hint:false,vals:[],act:0,done:false};show();
 }
 function show(){
@@ -281,6 +347,8 @@ async function result(){
   const day=d.days[t]=(d.days[t]&&typeof d.days[t]==='object')?d.days[t]:{};
   day.n=(day.n||0)+1;
   if(run.mode==='daily'){day.u=day.u||{};day.u[u.id]=Math.max(day.u[u.id]||0,total);}
+  markSeen(u,run.qs);
+  const up=u.adaptive?adRecord(u,run.qs,run.res):false;
   await save();
   const rate=total/max;
   const msg=rate===1?'全問パーフェクト！旅の達人だ 🏆':rate>=.75?'すばらしい！あと少しで満点 🎉':rate>=.5?'いい感じ！ヒントを見た問題をもう一度 💪':'まずはヒントを読んで、ゆっくりやってみよう 🌱';
@@ -289,6 +357,7 @@ async function result(){
    <span class="tag">${state.player}さんのけっか</span>
    <div class="stars">⭐ ${total} / ${max}</div>
    <div class="msg">${msg}</div>
+   ${up?`<div class="levelup">🎉 レベルアップ！ 今日のチャレンジに「レベル${adOf(u.id).lv}　${esc(u.levels[adOf(u.id).lv-1].title)}」が出るようになったよ</div>`:''}
    <table>${r0.qs.map((q,k)=>`<tr><td>レベル${q.lv}　${esc(u.levels[q.lv-1].title)}</td><td>${r0.res[k]?'⭐'.repeat(r0.res[k]):'もう一回'}</td></tr>`).join('')}</table>
    <p style="margin-top:14px">🔥 れんぞく ${streak(d.days)} 日目！${r0.mode==='daily'?'また明日もちがう問題が出るよ':''}</p>
    <button class="big" id="again">もう一回</button>
