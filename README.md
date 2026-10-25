@@ -11,6 +11,7 @@ index.html          画面のデザインと、読みこむ単元の一覧
 app.js              共通のしくみ（ふだん触らない）
 units/
   sansu-hayasa.js   算数「速さ」（カンナ）
+  sansu-hayasa2.js  算数「速さ②」進行グラフ・ツルカメ・差集め・通過算・時計算（カンナ）
   sansu-wasazan.js  算数「線分図と和差算」（イロハ）
   sansu-gyakuzan.js 算数「□を求める問題」（イロハ・電卓なし）
   sansu-shosu.js    算数「小数」（イロハ・電卓なし）
@@ -18,6 +19,7 @@ units/
   rika-chiso.js     理科「地層と地球の歴史」（カンナ）
   rika-hoshi.js     理科「星の動きと天球図」（カンナ）
   shakai-kamakura-muromachi.js  社会「鎌倉時代」「室町時代」（カンナ）
+  shakai-azuchi-edo.js  社会「安土桃山時代」「江戸時代」（カンナ）
   kokugo.js         国語「漢字」「ことわざ・慣用句」「四字熟語」（カンナ＝全部、イロハ＝4年までの漢字に自動でしぼる）
   iroha-rika-shakai.js  理科「生き物と季節」「電気・水・天気と月」、社会「地図の見方」「日本の都道府県と地形」（イロハ）
   _template.js      新しい単元のひな形（読みこまれない）
