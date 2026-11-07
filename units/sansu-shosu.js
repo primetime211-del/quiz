@@ -73,7 +73,7 @@ registerUnit({
     }},
 
     {title:'小数÷整数（あまりを出す）', page:'§4', gen:()=>{
-      const d=ri(3,9);let x;do{x=ri(60,499);}while(x%d===0);
+      let d=ri(3,9);let x;do{x=ri(60,499);}while(x%d===0);
       if(Math.random()<.5){
         const q=Math.floor(x/10/d),rem=x-q*d*10;
         if(q===0)return GEN_AMARI();
@@ -81,6 +81,7 @@ registerUnit({
           'あまりの小数点は、わられる数の小数点にそろえて打つよ',
           [`${D(x,1)} ÷ ${d} ＝ ${q} あまり ${D(rem,1)}`,`たしかめ：${d}×${q}＋${D(rem,1)}＝${D(x,1)}`]);
       }
+      if(d===5)d=pick([3,4,6,7,8,9]);   // ÷5 は小数第2位で必ずわり切れてしまうので別の数に
       let qh,rem;do{x=ri(60,499);qh=Math.floor(x*10/d);rem=x*10-qh*d;}while(rem===0);
       return P(`${D(x,1)} ÷ ${d} の商を小数第2位まで求め、あまりも出しなさい。`,[['商',''],['あまり','']],[num(qh,2),num(rem,2)],
         '商を小数第2位（0.01の位）まで出したら止める。あまりの小数点は、わられる数の小数点にそろえる',

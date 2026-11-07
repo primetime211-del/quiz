@@ -383,7 +383,7 @@ function finish(s,ok){
   const praise=['すごい！','カンペキ！','やったね！','その調子！'];
   document.getElementById('fb').innerHTML=`<div class="fb ${ok?'ok':'ng'}">
    <h3>${ok?pick(praise)+' '+'⭐'.repeat(s):'答えは '+ans}</h3>
-   ${(q.explain||[]).map(l=>`<p>${l}</p>`).join('')}
+   ${[].concat(q.explain||[]).map(l=>`<p>${l}</p>`).join('')}
    <button class="big next" id="nx">${run.i+1<run.qs.length?'つぎへ':'けっかを見る'}</button></div>`;
   const nx=document.getElementById('nx');nx.onclick=nextQ;nx.focus();
 }
