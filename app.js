@@ -70,7 +70,47 @@ const app=()=>document.getElementById('app');
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let view={name:'home'};
 function go(v){view=v;window.scrollTo(0,0);render();}
-function render(){({home,subject,unit}[view.name]||home)();}
+function render(){({home,subject,unit,card}[view.name]||home)();}
+
+// ===== スタンプ =====
+// 教科ごとに、その日に「今日のチャレンジ」を1つでも終えるとスタンプが1こおされる。4教科そろうと💮
+const myStampSubjects=()=>SUBJECTS.filter(s=>unitsOf(s.id).length);
+function stampsOn(date){
+  const day=me().days[date];if(!day||typeof day!=='object'||!day.u)return new Set();
+  const set=new Set();Object.keys(day.u).forEach(uid=>{const u=UNITS.find(x=>x.id===uid);if(u)set.add(u.subject);});return set;
+}
+const fullOn=date=>{const st=stampsOn(date),need=myStampSubjects();return need.length>0&&need.every(s=>st.has(s.id));};
+function stampHTML(s,on,size){return `<span class="stamp ${on?'on':''} ${size||''}" style="--sc:${s.color}">${on?`<i>${s.icon}</i><b>${s.name}</b>`:`<i>${s.icon}</i><b>${s.name}</b>`}</span>`;}
+function stampBar(){
+  const t=today(),st=stampsOn(t),need=myStampSubjects(),full=need.every(s=>st.has(s.id));
+  return `<div class="stampbar"><div class="stamphead"><span>📮 今日のスタンプ ${[...st].filter(x=>need.some(s=>s.id===x)).length}/${need.length}${full?' 💮':''}</span><button class="linkbtn" id="cardbtn">スタンプカード ›</button></div>
+    <div class="stamps">${need.map(s=>stampHTML(s,st.has(s.id))).join('')}</div>
+    ${full?'':`<small class="stampnote">教科の「今日のチャレンジ」を1つ終えると、その教科のスタンプがおされるよ</small>`}</div>`;
+}
+let cardMonth=null;
+function card(){
+  const now=new Date();if(!cardMonth)cardMonth=new Date(now.getFullYear(),now.getMonth(),1);
+  const y=cardMonth.getFullYear(),m=cardMonth.getMonth(),first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate(),need=myStampSubjects();
+  let cells='',total=0,fulls=0;
+  for(let i=0;i<first;i++)cells+='<div class="cd empty"></div>';
+  for(let d=1;d<=days;d++){
+    const key=dkey(new Date(y,m,d)),st=stampsOn(key),full=fullOn(key),isT=key===today(),future=new Date(y,m,d)>now;
+    const n=need.filter(s=>st.has(s.id)).length;total+=n;if(full)fulls++;
+    cells+=`<div class="cd ${isT?'today':''} ${full?'full':''}"><span class="dn">${d}</span>${future?'':full?'<span class="hana">💮</span>':`<span class="dots">${need.map(s=>`<i style="background:${st.has(s.id)?s.color:'transparent'};border-color:${s.color}"></i>`).join('')}</span>`}</div>`;
+  }
+  app().innerHTML=`
+  <button class="back" id="bk">← もどる</button>
+  <h1>📮 スタンプカード</h1>
+  ${playersBar()}
+  <div class="cardnav"><button class="ghost sm" id="prev">‹</button><b>${y}年${m+1}月</b><button class="ghost sm" id="next">›</button></div>
+  <div class="cal">${'日月火水木金土'.split('').map(w=>`<div class="wk">${w}</div>`).join('')}${cells}</div>
+  <div class="legend">${need.map(s=>`<span><i style="background:${s.color}"></i>${s.name}</span>`).join('')}<span>💮 4教科そろった日</span></div>
+  <div class="cardsum"><div><b>${total}</b><span>今月のスタンプ</span></div><div><b>${fulls}</b><span>💮の日</span></div><div><b>${streak(me().days)}</b><span>れんぞく日数</span></div></div>`;
+  document.getElementById('bk').onclick=()=>go({name:'home'});
+  document.getElementById('prev').onclick=()=>{cardMonth=new Date(y,m-1,1);render();};
+  document.getElementById('next').onclick=()=>{cardMonth=new Date(y,m+1,1);render();};
+  bindPlayers();
+}
 
 function playersBar(){
   return `<div class="players">${PLAYERS.map(p=>`<button aria-pressed="${p===state.player}" data-p="${p}">${p}</button>`).join('')}</div>`;
@@ -92,12 +132,14 @@ function home(){
   <p class="lead">毎日すこしずつ。4つの教科を旅しよう</p>
   ${playersBar()}
   ${streakBar()}
+  ${stampBar()}
   <div class="subjects">${SUBJECTS.map(s=>{const us=unitsOf(s.id);
     const st=us.reduce((a,u)=>a+unitStars(u),0),mx=us.reduce((a,u)=>a+u.levels.length*2,0);
     return `<button class="subj ${us.length?'':'empty'}" style="--sc:${s.color}" data-s="${s.id}">
-      <span class="ic">${s.icon}</span><b>${s.name}</b>
+      <span class="ic">${s.icon}${us.length&&stampsOn(today()).has(s.id)?'<em class="done">スタンプ済</em>':''}</span><b>${s.name}</b>
       <small>${us.length?`${us.length}単元　⭐${st}/${mx}`:'じゅんびちゅう'}</small></button>`;}).join('')}</div>`;
   bindPlayers();
+  document.getElementById('cardbtn').onclick=()=>{cardMonth=null;go({name:'card'});};
   app().querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>go({name:'subject',sid:b.dataset.s}));
 }
 
@@ -138,7 +180,7 @@ function unit(){
   const s=subj(u.subject),d=me(),t=today();
   const doneToday=d.days[t]&&d.days[t].u&&d.days[t].u[u.id];
   const best=unitBest(u.id);
-  const nQ=u.adaptive?AD.N:u.levels.filter(l=>l.daily!==false).length;
+  const nQ=u.adaptive?AD.N:Math.min(u.dailyN||99,u.levels.filter(l=>l.daily!==false).length);
   let adBox='';
   if(u.adaptive){const a=adStatus(u);const pct=a.rate==null?0:Math.round(a.rate*100);
     adBox=`<div class="adbox"><b>いまのレベル：${a.lv}　${esc(u.levels[a.lv-1].title)}</b>
@@ -219,10 +261,17 @@ function adStatus(u){
   return {lv:a.lv,n:h.length,rate:r,max:a.lv>=u.levels.length};
 }
 
+// 今日のチャレンジに出すレベル（単元に dailyN:10 と書くと、レベルが多いときに10個をえらぶ。⭐が少ないレベルを優先）
+function dailyLevels(u){
+  const all=u.levels.map((l,i)=>l.daily===false?null:i+1).filter(Boolean);
+  if(!u.dailyN||all.length<=u.dailyN)return all;
+  const b=unitBest(u.id);
+  return shuffle(all).sort((x,y)=>(b[x]||0)-(b[y]||0)).slice(0,u.dailyN).sort((x,y)=>x-y);
+}
 function start(u,mode,lv){
   const used=new Set();
   const levels=mode==='daily'
-    ?(u.adaptive?adaptiveLevels(u):u.levels.map((l,i)=>l.daily===false?null:i+1).filter(Boolean))
+    ?(u.adaptive?adaptiveLevels(u):dailyLevels(u))
     :Array(5).fill(lv);
   const qs=levels.map(l=>freshQ(u,l,used));
   run={u,mode,lv,qs,calc:u.calc!==false,i:0,res:[],tries:0,hint:false,vals:[],act:0,done:false};show();
@@ -346,7 +395,9 @@ async function result(){
   run.qs.forEach((q,k)=>{b[q.lv]=Math.max(b[q.lv]||0,run.res[k]);});
   const day=d.days[t]=(d.days[t]&&typeof d.days[t]==='object')?d.days[t]:{};
   day.n=(day.n||0)+1;
+  const hadStamp=stampsOn(t).has(u.subject),wasFull=fullOn(t);
   if(run.mode==='daily'){day.u=day.u||{};day.u[u.id]=Math.max(day.u[u.id]||0,total);}
+  const newStamp=run.mode==='daily'&&!hadStamp,newFull=!wasFull&&fullOn(t);
   markSeen(u,run.qs);
   const up=u.adaptive?adRecord(u,run.qs,run.res):false;
   await save();
@@ -357,12 +408,14 @@ async function result(){
    <span class="tag">${state.player}さんのけっか</span>
    <div class="stars">⭐ ${total} / ${max}</div>
    <div class="msg">${msg}</div>
+   ${newStamp?`<div class="getstamp">${stampHTML(subj(u.subject),true,'big')}<p>${subj(u.subject).name}のスタンプをおしたよ！<br><small>今日のスタンプ ${myStampSubjects().filter(s=>stampsOn(t).has(s.id)).length}/${myStampSubjects().length}</small></p></div>`:''}
+   ${newFull?`<div class="levelup" style="font-size:18px">💮 4教科コンプリート！今日はぜんぶの教科をがんばったね</div>`:''}
    ${up?`<div class="levelup">🎉 レベルアップ！ 今日のチャレンジに「レベル${adOf(u.id).lv}　${esc(u.levels[adOf(u.id).lv-1].title)}」が出るようになったよ</div>`:''}
    <table>${r0.qs.map((q,k)=>`<tr><td>レベル${q.lv}　${esc(u.levels[q.lv-1].title)}</td><td>${r0.res[k]?'⭐'.repeat(r0.res[k]):'もう一回'}</td></tr>`).join('')}</table>
    <p style="margin-top:14px">🔥 れんぞく ${streak(d.days)} 日目！${r0.mode==='daily'?'また明日もちがう問題が出るよ':''}</p>
    <button class="big" id="again">もう一回</button>
    <button class="ghost" id="hm">地図にもどる</button>
-   <button class="ghost" id="top">ほかの教科へ</button></div>`;
+   <button class="ghost" id="top">${newStamp&&!fullOn(t)?'つぎの教科のスタンプをもらいに行く':'ほかの教科へ'}</button></div>`;
   run=null;
   document.getElementById('again').onclick=()=>start(u,r0.mode,r0.lv);
   document.getElementById('hm').onclick=()=>go({name:'unit',uid:u.id});
