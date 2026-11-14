@@ -76,8 +76,9 @@ function render(){({home,subject,unit,card}[view.name]||home)();}
 // 教科ごとに、その日に「今日のチャレンジ」を1つでも終えるとスタンプが1こおされる。4教科そろうと💮
 const myStampSubjects=()=>SUBJECTS.filter(s=>unitsOf(s.id).length);
 function stampsOn(date){
-  const day=me().days[date];if(!day||typeof day!=='object'||!day.u)return new Set();
-  const set=new Set();Object.keys(day.u).forEach(uid=>{const u=UNITS.find(x=>x.id===uid);if(u)set.add(u.subject);});return set;
+  const day=me().days[date];if(!day||typeof day!=='object')return new Set();
+  const set=new Set();Object.keys(day.u||{}).forEach(uid=>{const u=UNITS.find(x=>x.id===uid);if(u)set.add(u.subject);});
+  Object.keys(day.s||{}).forEach(sid=>set.add(sid));return set;
 }
 const fullOn=date=>{const st=stampsOn(date),need=myStampSubjects();return need.length>0&&need.every(s=>st.has(s.id));};
 function stampHTML(s,on,size){return `<span class="stamp ${on?'on':''} ${size||''}" style="--sc:${s.color}">${on?`<i>${s.icon}</i><b>${s.name}</b>`:`<i>${s.icon}</i><b>${s.name}</b>`}</span>`;}
@@ -150,13 +151,15 @@ function subject(){
   <button class="back" id="bk">← 教科をえらぶ</button>
   <h1>${s.icon} ${s.name}</h1>
   ${playersBar()}
-  ${us.length?`<div class="units">${us.map(u=>{const st=unitStars(u),mx=u.levels.length*2;
+  ${us.length?sadBox(s):''}
+  ${us.length?`<div class="sec">単元をえらぶ</div><div class="units">${us.map(u=>{const st=unitStars(u),mx=u.levels.length*2;
     return `<button class="unit" style="--sc:${s.color}" data-u="${u.id}"><b>${esc(u.title)}</b><span>${esc(u.desc||'')}</span>
       <span>⭐ ${st} / ${mx}</span><div class="bar"><i style="width:${mx?st/mx*100:0}%"></i></div></button>`;}).join('')}</div>`
   :`<div class="emptybox">${s.name}のステージはじゅんびちゅう。<br>もうすぐ追加されるよ！</div>`}`;
   document.getElementById('bk').onclick=()=>go({name:'home'});
   bindPlayers();
   app().querySelectorAll('[data-u]').forEach(b=>b.onclick=()=>go({name:'unit',uid:b.dataset.u}));
+  const sd=document.getElementById('sdaily');if(sd)sd.onclick=()=>startSubject(s.id);
 }
 
 // --- 単元：地図とステージ
@@ -268,6 +271,50 @@ function dailyLevels(u){
   const b=unitBest(u.id);
   return shuffle(all).sort((x,y)=>(b[x]||0)-(b[y]||0)).slice(0,u.dailyN).sort((x,y)=>x-y);
 }
+// ===== 教科ぜんぶの「今日のチャレンジ」 =====
+// ・その教科の単元から10問。はじめはすべてランダム（いろいろなレベル）から出題
+// ・終わるたびに正解率で「むずかしさ（0〜100%）」を上げ下げし、次からはそのあたりのレベルを中心に出す
+//   （単元ごとのレベル数がちがっても、むずかしさ＝単元の中での位置で考える）
+const SAD={N:10};
+function sadOf(sid){const d=me();d.sad=d.sad||{};return d.sad[sid]=d.sad[sid]||{d:null,runs:0};}
+const lvList=u=>u.levels.map((l,i)=>l.daily===false?null:i+1).filter(Boolean);
+const posOf=(u,lv)=>{const L=lvList(u);return L.length>1?L.indexOf(lv)/(L.length-1):0;};
+function sadLevels(sid){
+  const a=sadOf(sid),us=unitsOf(sid),out=[];let order=shuffle(us);
+  for(let i=0;i<SAD.N;i++){
+    if(!order.length)order=shuffle(us);
+    const u=order.pop(),L=lvList(u);if(!L.length)continue;
+    let lv;
+    if(a.d===null||i>=SAD.N-2&&L.length>1&&a.d>0)lv=a.d===null?pick(L):pick(L.slice(0,Math.max(1,Math.round(a.d*(L.length-1))+1)));   // はじめはランダム／最後の2問は復習
+    else{const c=Math.round(a.d*(L.length-1)),j=c+pick([-1,0,0,0,1]);lv=L[Math.max(0,Math.min(L.length-1,j))];}
+    out.push({u,lv});
+  }
+  return out;
+}
+function sadRecord(sid,qs,res){
+  const a=sadOf(sid),sc=res.map(r=>r===2?1:r===1?.5:0),rate=sc.reduce((x,y)=>x+y,0)/sc.length,before=a.d;
+  if(a.d===null){ // 1回目：正解できた問題のむずかしさから、スタート地点を決める
+    const ok=qs.filter((q,i)=>sc[i]>=1).map(q=>posOf(q.u,q.lv));
+    a.d=ok.length?Math.min(.9,ok.reduce((x,y)=>x+y,0)/ok.length*(.6+rate*.5)):.1;
+  }else a.d+=rate>=.8?.15:rate>=.6?.05:rate<.4?-.15:-.05;
+  a.d=Math.max(0,Math.min(1,a.d));a.runs++;
+  return {before,after:a.d,rate};
+}
+const sadLabel=d=>d===null?'まだ決まっていないよ':d<.2?'やさしい':d<.4?'ふつう':d<.6?'ちょっとむずかしい':d<.8?'むずかしい':'さいこうレベル';
+function sadBox(s){
+  const a=sadOf(s.id),t=today(),day=me().days[t],done=day&&day.s&&day.s[s.id];
+  const pct=a.d===null?0:Math.round(a.d*100);
+  return `<div class="adbox"><b>${s.icon} ${s.name}ぜんぶの今日のチャレンジ</b>
+    <span>${a.d===null?'はじめは、いろいろな単元・レベルからランダムに10問出るよ':`むずかしさ：${sadLabel(a.d)}（${pct}%）　正解率が高いと上がり、低いと下がるよ`}</span>
+    <div class="bar"><i style="width:${pct}%"></i></div></div>
+  <button class="big" id="sdaily" style="--sc:${s.color};background:${s.color}">${done!==undefined?`もう一回（今日の記録 ⭐${done}/${SAD.N*2}）`:`${s.name}の今日のチャレンジ（${SAD.N}問）`}</button>`;
+}
+function startSubject(sid){
+  const used=new Set(),list=sadLevels(sid);
+  const qs=list.map(({u,lv})=>({...freshQ(u,lv,used),u}));
+  run={u:null,sid,mode:'sdaily',lv:null,qs,calc:true,i:0,res:[],tries:0,hint:false,vals:[],act:0,done:false};show();
+}
+
 function start(u,mode,lv){
   const used=new Set();
   const levels=mode==='daily'
@@ -280,12 +327,12 @@ function show(){
   const q=run.qs[run.i],n=run.qs.length;
   Object.assign(run,{tries:0,hint:false,done:false,act:0,vals:q.type==='pair'?q.labels.map(()=>''):['']});
   const dots=run.qs.map((_,k)=>{const st=run.res[k];return `<div class="dot ${st===undefined?'':st>0?'ok':'ng'}" style="left:${(k+.5)/n*100}%"></div>`;}).join('');
-  const lvt=run.u.levels[q.lv-1].title;
+  const qu=q.u||run.u,lvt=qu.levels[q.lv-1].title;run.calc=qu.calc!==false;
   app().innerHTML=`
-  <div class="top"><span>${run.mode==='daily'?'今日のチャレンジ':'れんしゅう'}　${run.i+1} / ${n}</span><button class="quit" id="quit">やめる</button></div>
+  <div class="top"><span>${run.mode==='sdaily'?subj(run.sid).name+'の今日のチャレンジ':run.mode==='daily'?'今日のチャレンジ':'れんしゅう'}　${run.i+1} / ${n}</span><button class="quit" id="quit">やめる</button></div>
   <div class="track"><div class="rd"></div>${dots}<div class="walker" style="left:${(run.i+.5)/n*100}%">🚶</div></div>
   <div class="card">
-   <span class="tag">レベル${q.lv}　${esc(lvt)}</span>
+   <span class="tag">${run.sid?esc(qu.title)+'　':''}レベル${q.lv}　${esc(lvt)}</span>
    <div class="q">${q.text.replace('□','<b>□</b>')}</div>
    <div class="ansrow" id="ar"></div>
    ${q.type==='choice'?'':`<div id="keys"><div class="keys ${run.calc?'calc':'num'}">${(run.calc?CALC_KEYS:NUM_KEYS).map(k=>k===''?'<span></span>':`<button data-k="${k}" class="${OPS.includes(k)?'op':k==='='?'eq':k==='C'||k==='⌫'?'fn':''}" aria-label="${k==='⌫'?'1文字けす':k==='C'?'ぜんぶけす':k}">${k}</button>`).join('')}</div>
@@ -294,7 +341,7 @@ function show(){
    <div id="hint"></div><div id="fb"></div>
   </div>`;
   drawAns();
-  document.getElementById('quit').onclick=()=>go({name:'unit',uid:run.u.id});
+  document.getElementById('quit').onclick=()=>run.sid?go({name:'subject',sid:run.sid}):go({name:'unit',uid:run.u.id});
   const hb=document.getElementById('hb');if(hb)hb.onclick=showHint;
   app().querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>key(b.dataset.k));
 }
@@ -390,6 +437,7 @@ function finish(s,ok){
 function nextQ(){run.i++;if(run.i<run.qs.length)show();else result();}
 
 async function result(){
+  if(run.sid)return resultSubject();
   const d=me(),u=run.u,total=run.res.reduce((a,b)=>a+b,0),max=run.qs.length*2,t=today();
   const b=d.best[u.id]=d.best[u.id]||{};
   run.qs.forEach((q,k)=>{b[q.lv]=Math.max(b[q.lv]||0,run.res[k]);});
@@ -419,6 +467,41 @@ async function result(){
   run=null;
   document.getElementById('again').onclick=()=>start(u,r0.mode,r0.lv);
   document.getElementById('hm').onclick=()=>go({name:'unit',uid:u.id});
+  document.getElementById('top').onclick=()=>go({name:'home'});
+}
+
+async function resultSubject(){
+  const d=me(),sid=run.sid,s=subj(sid),total=run.res.reduce((a,b)=>a+b,0),max=run.qs.length*2,t=today();
+  run.qs.forEach((q,k)=>{const b=d.best[q.u.id]=d.best[q.u.id]||{};b[q.lv]=Math.max(b[q.lv]||0,run.res[k]);});
+  const day=d.days[t]=(d.days[t]&&typeof d.days[t]==='object')?d.days[t]:{};
+  day.n=(day.n||0)+1;
+  const hadStamp=stampsOn(t).has(sid),wasFull=fullOn(t);
+  day.s=day.s||{};day.s[sid]=Math.max(day.s[sid]||0,total);
+  const newStamp=!hadStamp,newFull=!wasFull&&fullOn(t);
+  const byU={};run.qs.forEach(q=>{(byU[q.u.id]=byU[q.u.id]||{u:q.u,qs:[]}).qs.push(q);});Object.values(byU).forEach(x=>markSeen(x.u,x.qs));
+  const ch=sadRecord(sid,run.qs,run.res);
+  await save();
+  const rate=total/max;
+  const msg=rate===1?'全問パーフェクト！旅の達人だ 🏆':rate>=.75?'すばらしい！あと少しで満点 🎉':rate>=.5?'いい感じ！ヒントを見た問題をもう一度 💪':'まずはヒントを読んで、ゆっくりやってみよう 🌱';
+  const dif=ch.before===null?`<div class="levelup">🧭 あなたのスタート地点が決まったよ：むずかしさ「${sadLabel(ch.after)}」</div>`
+    :ch.after>ch.before?`<div class="levelup">⬆️ むずかしさアップ！ 次は「${sadLabel(ch.after)}」（${Math.round(ch.after*100)}%）</div>`
+    :ch.after<ch.before?`<div class="levelup" style="background:var(--card)">⬇️ 次は少しやさしめにするよ：「${sadLabel(ch.after)}」（${Math.round(ch.after*100)}%）</div>`:'';
+  const r0=run;
+  app().innerHTML=`<div class="card res">
+   <span class="tag">${state.player}さんの${s.name}のけっか</span>
+   <div class="stars">⭐ ${total} / ${max}</div>
+   <div class="msg">${msg}</div>
+   ${newStamp?`<div class="getstamp">${stampHTML(s,true,'big')}<p>${s.name}のスタンプをおしたよ！<br><small>今日のスタンプ ${myStampSubjects().filter(x=>stampsOn(t).has(x.id)).length}/${myStampSubjects().length}</small></p></div>`:''}
+   ${newFull?`<div class="levelup" style="font-size:18px">💮 4教科コンプリート！今日はぜんぶの教科をがんばったね</div>`:''}
+   ${dif}
+   <table>${r0.qs.map((q,k)=>`<tr><td>${esc(q.u.title)}　Lv${q.lv}　${esc(q.u.levels[q.lv-1].title)}</td><td>${r0.res[k]?'⭐'.repeat(r0.res[k]):'もう一回'}</td></tr>`).join('')}</table>
+   <p style="margin-top:14px">🔥 れんぞく ${streak(d.days)} 日目！</p>
+   <button class="big" id="again">もう一回</button>
+   <button class="ghost" id="hm">${s.name}にもどる</button>
+   <button class="ghost" id="top">${newStamp&&!fullOn(t)?'つぎの教科のスタンプをもらいに行く':'ほかの教科へ'}</button></div>`;
+  run=null;
+  document.getElementById('again').onclick=()=>startSubject(sid);
+  document.getElementById('hm').onclick=()=>go({name:'subject',sid});
   document.getElementById('top').onclick=()=>go({name:'home'});
 }
 
