@@ -71,7 +71,11 @@ button:focus-visible{outline:3px solid var(--flag);outline-offset:2px}
 .field{max-width:100%;overflow-x:auto;white-space:nowrap}
 .pl{display:flex;align-items:center;gap:6px;margin-right:6px}
 .pre{font-size:16px;font-weight:700;min-width:3.6em}
-.ansrow:has(.pl){flex-direction:column;align-items:flex-start}
+.ansrow:has(.pre){flex-direction:column;align-items:flex-start}
+.fr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;line-height:1.05;margin:0 2px;font-size:.9em}
+.fr i{font-style:normal;padding:0 3px}.fr i:first-child{border-bottom:1.5px solid currentColor}
+.maru{display:inline-flex;align-items:center;justify-content:center;min-width:1.35em;height:1.35em;border:1.5px solid currentColor;border-radius:50%;font-size:.85em;padding:0 2px;margin:0 1px}
+.shikaku{display:inline-flex;align-items:center;justify-content:center;min-width:1.3em;height:1.3em;border:1.5px solid currentColor;font-size:.85em;padding:0 2px;margin:0 1px}
 .prev{font-size:15px;color:var(--sub);margin-top:2px;padding-left:4px}
 .keys button{height:56px;border-radius:14px;border:2px solid var(--line);background:var(--key);font-size:24px;font-weight:700}
 .go{display:block;width:100%;height:56px;margin-top:8px;border-radius:14px;border:none;background:var(--ok);color:#fff;font-size:20px;font-weight:700}
@@ -162,15 +166,21 @@ button:focus-visible{outline:3px solid var(--flag);outline-offset:2px}
 <!-- ===== 単元ファイル：新しい単元を作ったら、ここに1行足す ===== -->
 <script src="units/sansu-hayasa.js"></script>      <!-- カンナ -->
 <script src="units/sansu-hayasa2.js"></script>     <!-- カンナ -->
+<script src="units/sansu-hi.js"></script>          <!-- カンナ -->
+<script src="units/sansu-hi2.js"></script>         <!-- カンナ -->
 <script src="units/sansu-wasazan.js"></script>     <!-- イロハ -->
 <script src="units/sansu-gyakuzan.js"></script>    <!-- イロハ -->
 <script src="units/sansu-shosu.js"></script>       <!-- イロハ -->
 <script src="units/sansu-kakudo.js"></script>      <!-- イロハ -->
 <script src="units/rika-chiso.js"></script>         <!-- カンナ -->
 <script src="units/rika-hoshi.js"></script>         <!-- カンナ -->
+<script src="units/rika-shokubutsu.js"></script>    <!-- カンナ -->
+<script src="units/rika-hito.js"></script>          <!-- カンナ -->
 <script src="units/shakai-kamakura-muromachi.js"></script>  <!-- カンナ -->
 <script src="units/shakai-azuchi-edo.js"></script>   <!-- カンナ -->
 <script src="units/kokugo.js"></script>             <!-- カンナ・イロハ -->
+<script src="units/kokugo-keigo.js"></script>       <!-- カンナ -->
+<script src="units/kokugo-hinshi.js"></script>      <!-- カンナ -->
 <script src="units/iroha-rika-shakai.js"></script>   <!-- イロハ -->
 <!-- ============================================================ -->
 
