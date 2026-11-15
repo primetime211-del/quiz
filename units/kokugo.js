@@ -1,6 +1,6 @@
 // =============================================================
 //  国語「漢字」「ことわざ・慣用句」「四字熟語」
-//   カンナ：中学受験の範囲すべて
+//   カンナ：データだけをここに置き、章は kokugo-kanna.js で作る
 //   イロハ：小学4年生までに習う漢字だけでできている問題＋4年生までに覚えるもの
 //  漢字の学年は、下の学年別漢字配当表から自動で判定します。
 // =============================================================
@@ -458,10 +458,10 @@ function build(player,max){
   registerUnit({id:'kokugo-kotowaza-'+(kid?'i':'k'),subject:'kokugo',players:[player],title:kid?kz('ことわざ・慣用句')+tag:'ことわざ・慣用句',desc:kid?'ことわざ・体の言葉のかんよう句':'ことわざ・慣用句・故事成語',levels:kotoLevels});
   registerUnit({id:'kokugo-yoji-'+(kid?'i':'k'),subject:'kokugo',players:[player],title:kid?'四字じゅく語'+tag:'四字熟語',desc:'意味・読み・正しい漢字・使い方',levels:yojiLevels});
 }
-build('カンナ',99);
+// カンナの国語は kokugo-kanna.js（中学受験レベルの章立て）で作ります
 build('イロハ',4);
 
 // テスト用
-if(typeof window!=='undefined')window.__KOKUGO={grade,YOMI,TOKU,DOUON,DOUKUN,TAIGI,RUIGI,KOTO,ANA,KANYO,YOJI,BUN};
+if(typeof window!=='undefined')window.__KOKUGO={grade,YOMI,TOKU,DOUON,DOUKUN,TAIGI,RUIGI,KOTO,NITA,HANTAI,ANA,KANYO,KOJI,YOJI,GOJI,BUN};
 
 })();
