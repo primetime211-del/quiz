@@ -70,7 +70,41 @@ const app=()=>document.getElementById('app');
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let view={name:'home'};
 function go(v){view=v;window.scrollTo(0,0);render();}
-function render(){({home,subject,unit,card}[view.name]||home)();}
+function render(){
+  const vu=view.name==='unit'&&UNITS.find(x=>x.id===view.uid);
+  rubyOn=(view.name==='subject'&&view.sid==='shakai')||(vu&&vu.subject==='shakai');
+  ({home,subject,unit,card}[view.name]||home)();
+}
+
+// ===== 社会のふりがな =====
+// 社会の画面では、漢字にルビ（ふりがな）をつける。辞書は ruby-shakai.js
+let rubyOn=false,rubyMax=0;
+const KANJI=/[一-鿿々〆ヶ]/;
+function rubyText(s){
+  const D=window.RUBY_SHAKAI;if(!D)return null;
+  if(!rubyMax)rubyMax=Math.max(...Object.keys(D).map(k=>k.length));
+  let o='',i=0,hit=false;
+  while(i<s.length){
+    let L=Math.min(rubyMax,s.length-i),m=null;
+    if(KANJI.test(s.slice(i,i+L)))for(;L>0;L--){const k=s.slice(i,i+L);if(D[k]){m=D[k];break;}}
+    if(m){o+=m;i+=L;hit=true;}else{o+=esc(s[i]);i++;}
+  }
+  return hit?o:null;
+}
+function rubify(root){
+  if(!rubyOn||!window.RUBY_SHAKAI)return;
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>
+    !KANJI.test(n.nodeValue)||n.parentNode.closest('ruby,svg,script,style,textarea')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT});
+  const list=[];while(w.nextNode())list.push(w.currentNode);
+  for(const n of list){const h=rubyText(n.nodeValue);if(!h)continue;
+    const t=document.createElement('template');t.innerHTML=h;n.parentNode.replaceChild(t.content,n);}
+}
+function watchRuby(){
+  rubify(app());
+  new MutationObserver(ms=>{if(!rubyOn)return;for(const m of ms)m.addedNodes.forEach(n=>{
+    if(n.nodeType===3){if(n.parentNode)rubify(n.parentNode);}else if(n.nodeType===1)rubify(n);});})
+   .observe(app(),{childList:true,subtree:true});
+}
 
 // ===== スタンプ =====
 // 教科ごとに、その日に「今日のチャレンジ」を1つでも終えるとスタンプが1こおされる。4教科そろうと💮
@@ -327,7 +361,7 @@ function show(){
   const q=run.qs[run.i],n=run.qs.length;
   Object.assign(run,{tries:0,hint:false,done:false,act:0,vals:q.type==='pair'?q.labels.map(()=>''):['']});
   const dots=run.qs.map((_,k)=>{const st=run.res[k];return `<div class="dot ${st===undefined?'':st>0?'ok':'ng'}" style="left:${(k+.5)/n*100}%"></div>`;}).join('');
-  const qu=q.u||run.u,lvt=qu.levels[q.lv-1].title;run.calc=qu.calc!==false;
+  const qu=q.u||run.u,lvt=qu.levels[q.lv-1].title;run.calc=qu.calc!==false;rubyOn=qu.subject==='shakai';
   app().innerHTML=`
   <div class="top"><span>${run.mode==='sdaily'?subj(run.sid).name+'の今日のチャレンジ':run.mode==='daily'?'今日のチャレンジ':'れんしゅう'}　${run.i+1} / ${n}</span><button class="quit" id="quit">やめる</button></div>
   <div class="track"><div class="rd"></div>${dots}<div class="walker" style="left:${(run.i+.5)/n*100}%">🚶</div></div>
@@ -509,7 +543,7 @@ async function resultSubject(){
 const PASS_HASH='629f4cf9337b0d0c76f305d860f98894cfa8c279516b425747514ca8710deb97';
 async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
 function unlocked(){try{return localStorage.getItem('hayasa:unlock')===PASS_HASH;}catch(e){return false;}}
-async function boot(){for(const p of PLAYERS)state.data[p]=await load(p);go({name:'home'});}
+async function boot(){for(const p of PLAYERS)state.data[p]=await load(p);watchRuby();go({name:'home'});}
 function lockScreen(){
   let v='';
   const draw=(err='')=>{app().innerHTML=`<div class="lock"><h1>かんいろの旅 🚶</h1><p>あいことば（パスワード）を入れてね</p>
